@@ -1,0 +1,18 @@
+const $=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)];
+const sp=$('#sp');let dn=0;const hide=()=>{if(dn++)return;sp.classList.add('x');setTimeout(()=>sp.remove(),800)};
+addEventListener('load',()=>setTimeout(hide,1400));setTimeout(hide,4000);
+const hd=$('header'),sc=()=>hd.classList.toggle('s',scrollY>20);sc();addEventListener('scroll',sc,{passive:true});
+const mb=$('#mb'),ls=$$('nav>a'),tg=v=>{const o=hd.classList.toggle('o',v);mb.setAttribute('aria-expanded',o);document.body.classList.toggle('mn',o)};
+mb.onclick=()=>tg();$('#ov').onclick=()=>tg(false);
+addEventListener('keydown',e=>e.key==='Escape'&&tg(false));addEventListener('resize',()=>innerWidth>1020&&tg(false));
+$$('nav a').forEach(a=>a.addEventListener('click',()=>tg(false)));
+ls.forEach((a,i)=>a.style.setProperty('--i',i+1));$('#dl').src=$('.br img').src;
+const spy=()=>{let c,m=-1e9;ls.forEach(a=>{const t=$(a.hash);if(!t)return;const y=t.getBoundingClientRect().top;if(y<=innerHeight*.4&&y>m){m=y;c=a}});ls.forEach(a=>a.classList.toggle('on',a===c))};
+addEventListener('scroll',spy,{passive:true});spy();
+const io=new IntersectionObserver(es=>es.forEach(e=>{if(e.isIntersecting){e.target.classList.add('in');io.unobserve(e.target)}}),{threshold:.15});
+$$('.rv').forEach(e=>io.observe(e));
+$('#rg').oninput=e=>$('#cm').style.setProperty('--x',e.target.value+'%');
+$$('[data-s]').forEach(b=>b.addEventListener('click',()=>{$('#sv').value=b.dataset.s}));
+$('#bf').onsubmit=e=>{e.preventDefault();const f=Object.fromEntries(new FormData(e.target));
+const t=`مرحبًا سمايل دنتال كير، أرغب في حجز موعد.\nالاسم: ${f.n}\nالموبايل: ${f.p}\nالخدمة: ${f.s}\nالموعد المفضل: ${f.d||'غير محدد'}${f.m?'\nملاحظات: '+f.m:''}`;
+$('#ok').hidden=false;open('https://wa.me/201117778389?text='+encodeURIComponent(t),'_blank')};

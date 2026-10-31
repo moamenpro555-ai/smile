@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>أجندة المواعيد | لوحة سمايل دنتال كير</title>
+  <link rel="icon" href="../images/logo.jpg" type="image/jpeg">
+  <link rel="stylesheet" href="css/base.css">
+  <link rel="stylesheet" href="css/site.css">
+  <link rel="stylesheet" href="css/admin.css">
+</head>
+<body>
+  <div class="app">
+    <aside class="sidebar" id="sidebar"></aside>
+    <div class="main">
+      <header class="top" id="topbar"></header>
+      <div class="content">
+        <div class="cal-bar">
+          <div class="seg"><button id="vDay" class="on">يومي</button><button id="vWeek">أسبوعي</button></div>
+          <button class="btn btn-ghost btn-sm" id="prev">→ السابق</button>
+          <button class="btn btn-ghost btn-sm" id="todayBtn">النهارده</button>
+          <button class="btn btn-ghost btn-sm" id="next">التالي ←</button>
+          <span class="cal-title" id="calTitle"></span>
+          <input type="date" id="jump" style="padding:7px 10px;border:1.5px solid var(--line);border-radius:10px">
+          <select id="docFilter" style="padding:8px 10px;border:1.5px solid var(--line);border-radius:10px;background:#fff"></select>
+          <button class="btn btn-primary btn-sm" id="addAppt" style="margin-inline-start:auto">+ موعد جديد</button>
+        </div>
+        <div id="calBody"></div>
+      </div>
+    </div>
+  </div>
+  <script src="js/config.js"></script>
+  <script src="js/icons.js"></script>
+  <script src="js/store.js"></script>
+  <script src="js/admin-common.js"></script>
+  <script src="js/admin-forms.js"></script>
+  <script src="js/admin-calendar.js"></script>
+</body>
+</html>
