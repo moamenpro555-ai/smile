@@ -70,8 +70,8 @@
         '<div class="field"><label>المريض</label><select name="patient">' +
         (a ? '' : '<option value="__new">+ مريض جديد</option>') +
         opts(patients, cur.patientId, function (p) { return p.name + ' — ' + p.phone; }) + '</select></div>' +
-        '<div id="newPat" class="row2"' + (cur.patientId ? ' hidden' : '') + '><div class="field"><label>اسم المريض</label><input name="newName"></div>' +
-        '<div class="field"><label>الموبايل</label><input name="newPhone" dir="ltr" style="text-align:right"></div></div>' +
+        '<div id="newPat" class="row2"' + (cur.patientId ? ' hidden' : '') + '><div class="field"><label>اسم المريض</label><input name="newName" value="' + esc(def.newName) + '"></div>' +
+        '<div class="field"><label>الموبايل</label><input name="newPhone" dir="ltr" style="text-align:right" value="' + esc(def.newPhone) + '"></div></div>' +
         '<div class="row2"><div class="field"><label>الخدمة</label><select name="service">' + opts(DB.all('services'), cur.serviceId || 's0', function (s) { return s.name; }) + '</select></div>' +
         '<div class="field"><label>الدكتور</label><select name="doctor">' + opts(doctors, cur.doctorId || (doctors[0] && doctors[0].id), function (d) { return d.name; }) + '</select></div></div>' +
         '<div class="row2"><div class="field"><label>التاريخ</label><input type="date" name="date" value="' + esc(cur.date || DB.today()) + '"></div>' +

@@ -21,6 +21,21 @@
       }).join('') + '</tbody></table>';
   }
 
+  function requestsTable(list) {
+    return '<table class="tbl"><thead><tr><th>الاسم</th><th>الموبايل</th><th>الخدمة</th><th>الموعد المفضل</th><th>ملاحظات</th><th></th></tr></thead><tbody>' +
+      list.map(function (r) {
+        var wa = DB.waLink(r.phone, 'أهلاً ' + r.name + '، معاك ' + CLINIC.name + '. وصلنا طلب الحجز بتاعك' + (r.service ? ' (' + r.service + ')' : '') + '، ينفع نأكد معاك الميعاد؟');
+        return '<tr><td><strong>' + esc(r.name) + '</strong></td>' +
+          '<td dir="ltr" style="text-align:right">' + esc(r.phone) + '</td>' +
+          '<td>' + esc(r.service || '—') + '</td>' +
+          '<td>' + (r.date ? DB.fmtDate(r.date, false) : '—') + '</td>' +
+          '<td>' + esc(r.notes || '') + '</td>' +
+          '<td style="white-space:nowrap"><a class="btn btn-ghost btn-sm" target="_blank" rel="noopener" href="' + wa + '">واتساب</a> ' +
+          '<button class="btn btn-primary btn-sm" data-req-book="' + r.id + '">حجز موعد</button> ' +
+          '<button class="btn btn-ghost btn-sm" data-req-done="' + r.id + '">تم التعامل</button></td></tr>';
+      }).join('') + '</tbody></table>';
+  }
+
   function render() {
     var t = DB.today();
     var mine = Admin.myAppts();
@@ -45,6 +60,12 @@
     $('#todayTitle').textContent = 'مواعيد النهارده — ' + DB.fmtDate(t);
     $('#todayTable').innerHTML = apptTable(todayList, false);
     $('#pendingTable').innerHTML = apptTable(pending, true);
+    var reqCard = $('#reqCard');
+    if (Admin.isReception()) {
+      var newReqs = DB.all('requests').filter(function (r) { return r.status === 'new'; });
+      reqCard.hidden = !newReqs.length;
+      if (newReqs.length) $('#reqTable').innerHTML = requestsTable(newReqs);
+    }
   }
 
   document.addEventListener('change', function (e) {
@@ -54,6 +75,17 @@
   document.addEventListener('click', function (e) {
     var b = e.target.closest('[data-open]');
     if (b) Forms.apptDetails(b.dataset.open, render);
+    var done = e.target.closest('[data-req-done]');
+    if (done) { DB.update('requests', done.dataset.reqDone, { status: 'handled' }); Admin.toast('تم'); render(); }
+    var book = e.target.closest('[data-req-book]');
+    if (book) {
+      var r = DB.find('requests', book.dataset.reqBook); if (!r) return;
+      var known = DB.all('patients').filter(function (p) { return p.phone === DB.normPhone(r.phone); })[0];
+      var svc = DB.all('services').filter(function (x) { return r.service && (r.service.indexOf(x.name) > -1 || x.name.indexOf(r.service) > -1); })[0];
+      Forms.appointmentForm({ patientId: known ? known.id : '', newName: r.name, newPhone: r.phone, serviceId: svc ? svc.id : '', date: r.date || DB.today(), notes: r.notes || '' }, function () {
+        DB.update('requests', r.id, { status: 'handled' }); render();
+      });
+    }
   });
   var add = $('#addAppt');
   add.addEventListener('click', function () { Forms.appointmentForm({}, render); });

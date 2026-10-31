@@ -162,3 +162,4 @@ table.tbl { width: 100%; border-collapse: collapse; font-size: 14px; }
   .top { padding: 12px 14px; }
   .row2 { grid-template-columns: 1fr; }
 }
+[hidden]{display:none!important}

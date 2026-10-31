@@ -15,4 +15,6 @@ $('#rg').oninput=e=>$('#cm').style.setProperty('--x',e.target.value+'%');
 $$('[data-s]').forEach(b=>b.addEventListener('click',()=>{$('#sv').value=b.dataset.s}));
 $('#bf').onsubmit=e=>{e.preventDefault();const f=Object.fromEntries(new FormData(e.target));
 const t=`مرحبًا سمايل دنتال كير، أرغب في حجز موعد.\nالاسم: ${f.n}\nالموبايل: ${f.p}\nالخدمة: ${f.s}\nالموعد المفضل: ${f.d||'غير محدد'}${f.m?'\nملاحظات: '+f.m:''}`;
-$('#ok').hidden=false;open('https://wa.me/201117778389?text='+encodeURIComponent(t),'_blank')};
+$('#ok').hidden=false;
+if(window.SITE_API){try{fetch(window.SITE_API.replace(/\/+$/,'')+'/api/public/booking-request',{method:'POST',headers:{'Content-Type':'application/json'},keepalive:true,body:JSON.stringify({name:f.n,phone:f.p,service:f.s,date:f.d||'',notes:f.m||'',website:f.website||''})}).catch(()=>{})}catch(_){}}
+open('https://wa.me/201117778389?text='+encodeURIComponent(t),'_blank')};

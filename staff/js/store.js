@@ -1,16 +1,26 @@
 /* ============================================================
-   store.js — طبقة البيانات (localStorage)
-   كل صفحات الموقع واللوحة بتتعامل مع البيانات من خلال DB بس.
-   لما تربطه بسيرفر حقيقي (Express + Postgres) بدّل الدوال اللي
-   جوه الملف ده بطلبات fetch، وباقي الملفات مش هتتغير.
+   store.js — طبقة البيانات (متصلة بالـ API / Neon)
+   كل صفحات اللوحة بتتعامل مع البيانات من خلال DB بس، بنفس الدوال القديمة.
+   - عند الفتح: بنجيب لقطة كاملة من السيرفر (DB.ready).
+   - أي تعديل بيتحفظ محلياً فوراً وبيتبعت للسيرفر تلقائي (دفعة واحدة).
+   - لو السيرفر رفض (مثلاً ميعاد متحجز) بنرجّع البيانات الصح ونطلع رسالة.
    ============================================================ */
 (function (g) {
   'use strict';
   var C = g.CLINIC;
-  var KEY = 'smileDental.v1';
+  var API = String(C.apiBase || '').replace(/\/+$/, '');
+  var TOKEN_KEY = 'smileDental.token';
   var SESSION_KEY = 'smileDental.session';
-  var data = null;
-  var memory = null;
+  var COLLS = ['patients', 'appointments', 'invoices', 'requests'];
+  var data = emptyData();
+  var synced = {};          // "coll/id" -> JSON اللي السيرفر عنده
+  var syncedSettings = '{}';
+  var lastSnap = '';
+  var busy = false, dirty = false, scheduled = false;
+
+  function emptyData() {
+    return { doctors: [], services: [], patients: [], appointments: [], invoices: [], requests: [], settings: {} };
+  }
 
   /* ---------- أدوات ---------- */
   function pad(n) { return String(n).padStart(2, '0'); }
@@ -52,16 +62,119 @@
     return 'https://wa.me/' + p + '?text=' + encodeURIComponent(text || '');
   }
 
-  /* ---------- تخزين ---------- */
-  function readStore() {
-    try { var r = localStorage.getItem(KEY); return r ? JSON.parse(r) : null; }
-    catch (e) { return memory; }
-  }
-  function save() {
-    try { localStorage.setItem(KEY, JSON.stringify(data)); }
-    catch (e) { memory = data; }
+
+  /* ---------- الاتصال بالسيرفر ---------- */
+  function token() { try { return sessionStorage.getItem(TOKEN_KEY); } catch (e) { return null; } }
+
+  function toLogin() {
+    logout();
+    if (!/login\.html$/.test(location.pathname)) location.href = 'login.html';
   }
 
+  function request(method, path, body, opts) {
+    opts = opts || {};
+    var headers = { 'Content-Type': 'application/json' };
+    if (token()) headers.Authorization = 'Bearer ' + token();
+    var json = body === undefined ? undefined : JSON.stringify(body);
+    var ctrl = typeof AbortController !== 'undefined' ? new AbortController() : null;
+    var timer = ctrl ? setTimeout(function () { ctrl.abort(); }, opts.timeout || 70000) : null; // Render المجاني ممكن يصحى في ~50 ثانية
+    return fetch(API + path, {
+      method: method, headers: headers, body: json, signal: ctrl ? ctrl.signal : undefined,
+      keepalive: !!json && json.length < 60000
+    }).then(function (r) {
+      if (timer) clearTimeout(timer);
+      return r.json().catch(function () { return {}; }).then(function (j) {
+        if (r.status === 401 && !opts.noAuthRedirect) { toLogin(); throw new Error('انتهت الجلسة'); }
+        if (!r.ok) { var e = new Error(j.error || 'حصل خطأ، حاول تاني.'); e.status = r.status; throw e; }
+        return j;
+      });
+    }, function () {
+      if (timer) clearTimeout(timer);
+      throw new Error('مش قادر أوصل للسيرفر. اتأكد من النت وحاول تاني.');
+    });
+  }
+
+  /* ---------- لقطة البيانات والمزامنة ---------- */
+  function apply(snap) {
+    data = {
+      doctors: snap.doctors || [], services: snap.services || [], patients: snap.patients || [],
+      appointments: snap.appointments || [], invoices: snap.invoices || [], requests: snap.requests || [],
+      settings: snap.settings || {}
+    };
+    synced = {};
+    COLLS.forEach(function (c) { data[c].forEach(function (o) { synced[c + '/' + o.id] = JSON.stringify(o); }); });
+    syncedSettings = JSON.stringify(data.settings);
+  }
+
+  function fetchSnap() { return request('GET', '/api/snapshot'); }
+
+  function refresh() {
+    return fetchSnap().then(function (snap) { lastSnap = JSON.stringify(snap); apply(snap); });
+  }
+
+  // بيحسب الفرق بين البيانات الحالية وآخر نسخة السيرفر عنده → مصفوفة عمليات
+  function diff() {
+    var puts = [], dels = [], seen = {};
+    COLLS.forEach(function (c) {
+      data[c].forEach(function (o) {
+        var k = c + '/' + o.id, j = JSON.stringify(o); seen[k] = 1;
+        if (synced[k] !== j) puts.push({ t: 'put', c: c, id: o.id, data: o, k: k, j: j });
+      });
+    });
+    ['invoices', 'appointments', 'requests', 'patients'].forEach(function (c) {
+      Object.keys(synced).forEach(function (k) {
+        if (k.indexOf(c + '/') === 0 && !seen[k]) dels.push({ t: 'del', c: c, id: k.slice(c.length + 1), k: k });
+      });
+    });
+    var ops = puts.concat(dels);
+    var sj = JSON.stringify(data.settings);
+    if (sj !== syncedSettings && Object.keys(data.settings).length) {
+      ops.push({ t: 'put', c: 'settings', id: 'main', data: data.settings, k: 'settings', j: sj });
+    }
+    return ops;
+  }
+
+  function toast(msg) { if (g.Admin && Admin.toast) Admin.toast(msg, 'error'); else console.warn(msg); }
+
+  function flush() {
+    if (busy) { dirty = true; return; }
+    var ops = diff();
+    if (!ops.length) return;
+    busy = true;
+    var batch = ops.slice(0, 100);
+    request('POST', '/api/sync', { ops: batch.map(function (o) { return { t: o.t, c: o.c, id: o.id, data: o.data }; }) })
+      .then(function () {
+        batch.forEach(function (o) {
+          if (o.t === 'del') delete synced[o.k];
+          else if (o.k === 'settings') syncedSettings = o.j;
+          else synced[o.k] = o.j;
+        });
+      })
+      .catch(function (e) {
+        toast(e.message);
+        return refresh().then(function () { if (typeof DB.onChange === 'function') DB.onChange(); });
+      })
+      .then(function () { busy = false; if (dirty || diff().length) { dirty = false; flush(); } });
+  }
+
+  function save() {
+    if (scheduled) return;
+    scheduled = true;
+    Promise.resolve().then(function () { scheduled = false; flush(); });
+  }
+
+  // مزامنة دورية: حجز جديد من الموقع يظهر من غير ما تعمل ريفريش
+  function poll() {
+    if (!session() || document.hidden || busy || scheduled || diff().length || document.getElementById('modalOverlay')) return;
+    fetchSnap().then(function (snap) {
+      var s = JSON.stringify(snap);
+      if (s === lastSnap || busy || diff().length) return;
+      lastSnap = s; apply(snap);
+      if (typeof DB.onChange === 'function') DB.onChange();
+    }).catch(function () { /* تجاهل أخطاء الشبكة المؤقتة */ });
+  }
+
+  /* ---------- CRUD (نفس الواجهة القديمة) ---------- */
   function newPatient(o) {
     return Object.assign({
       id: uid('p'), name: '', phone: '', birth: '', gender: '', address: '', createdAt: today(),
@@ -69,75 +182,6 @@
       chart: {}, works: []
     }, o || {});
   }
-
-  /* ---------- بيانات تجريبية ---------- */
-  function seed() {
-    var t = today();
-    var d = {
-      version: 1,
-      settings: { reminderTemplate: C.reminderTemplate },
-      doctors: [
-        { id: 'd1', name: 'د. أحمد سمير', specialty: 'تجميل وزراعة الأسنان', start: '10:00', end: '20:00', offDays: [5] },
-        { id: 'd2', name: 'د. منى حسن', specialty: 'أسنان الأطفال والتقويم', start: '12:00', end: '22:00', offDays: [5] },
-        { id: 'd3', name: 'د. كريم عادل', specialty: 'علاج الجذور والحشو', start: '10:00', end: '18:00', offDays: [5] }
-      ],
-      services: [
-        { id: 's0', name: 'كشف واستشارة', price: 200, duration: 30, icon: 'tooth', site: false },
-        { id: 's1', name: 'التبييض والفينيرز', price: 1500, duration: 60, icon: 'tooth', site: true, desc: 'ابتسامة أفتح بنتيجة طبيعية، وتصميم فينيرز على حسب شكل وجهك.' },
-        { id: 's2', name: 'تجميل الابتسامة', price: 2500, duration: 60, icon: 'sparkles', site: true, desc: 'تغيير كامل للابتسامة بخطة مصممة على حالتك، وحالات قبل وبعد بتتكلم عن نفسها.' },
-        { id: 's3', name: 'التركيبات', price: 1200, duration: 60, icon: 'shield', site: true, desc: 'زيركون وسيراميك وإي ماكس، نختار معاك الأنسب لحالتك.' },
-        { id: 's4', name: 'الجسور والزراعة', price: 6000, duration: 90, icon: 'implant', site: true, desc: 'عوّض الأسنان الناقصة بحل ثابت ومريح يرجّعلك الثقة في الأكل والضحك.' },
-        { id: 's5', name: 'أسنان الأطفال', price: 300, duration: 30, icon: 'smile', site: true, desc: 'زيارة لطيفة بتخلّي طفلك يحب الدكتور، وبداية صحيحة لعادات العناية.' },
-        { id: 's6', name: 'العلاج والحشو', price: 400, duration: 45, icon: 'plus', site: true, desc: 'كشف وتشخيص دقيق وعلاج للتسوس والعصب بأدوات معقمة.' },
-        { id: 's7', name: 'تقويم الأسنان', price: 15000, duration: 45, icon: 'braces', site: true, desc: 'تقويم معدني أو شفاف بخطة واضحة ومتابعة دورية لحد ما توصل للابتسامة اللي عاوزها.' },
-        { id: 's8', name: 'تنظيف وتلميع', price: 350, duration: 30, icon: 'drop', site: true, desc: 'إزالة الجير والتصبغات وتلميع الأسنان لثة صحية ونفس منعش.' },
-        { id: 's9', name: 'الخلع والجراحة', price: 500, duration: 30, icon: 'cross', site: true, desc: 'خلع بسيط أو جراحي بتخدير موضعي مريح وبأقل ألم ممكن.' }
-      ],
-      users: [
-        { id: 'u1', username: 'reception', password: '1234', name: 'الريسبشن', role: 'reception' },
-        { id: 'u2', username: 'dr.ahmed', password: '1234', name: 'د. أحمد سمير', role: 'doctor', doctorId: 'd1' },
-        { id: 'u3', username: 'dr.mona', password: '1234', name: 'د. منى حسن', role: 'doctor', doctorId: 'd2' },
-        { id: 'u4', username: 'dr.karim', password: '1234', name: 'د. كريم عادل', role: 'doctor', doctorId: 'd3' }
-      ],
-      reviews: [
-        { id: 'r1', name: 'سارة محمود', text: 'تجربة ممتازة، الدكتور شرحلي كل خطوة قبل ما يبدأ ومحسيتش بأي وجع. النتيجة فاقت توقعاتي.', rating: 5 },
-        { id: 'r2', name: 'محمد علي', text: 'جبت ابني الصغير وكان خايف جداً، وطلع من العيادة مبسوط وعاوز يرجع تاني. شكراً لكل الفريق.', rating: 5 },
-        { id: 'r3', name: 'نورهان أحمد', text: 'عملت تبييض وفينيرز والنتيجة طبيعية جداً. العيادة نضيفة والمواعيد منظمة.', rating: 5 }
-      ],
-      patients: [], appointments: [], invoices: []
-    };
-    var p1 = newPatient({ id: 'p1', name: 'سارة محمود', phone: '01012345678', birth: '1994-05-12', gender: 'f' });
-    p1.medical.anesthesia = true; p1.medical.allergies = 'حساسية من البنسلين';
-    p1.chart = { 16: { status: 'filling', note: 'حشو ضرس سفلي', date: addDays(t, -20) }, 26: { status: 'cavity', note: 'تسوس محتاج حشو', date: addDays(t, -20) } };
-    p1.works = [{ id: 'w1', date: addDays(t, -20), doctorId: 'd3', tooth: '16', procedure: 'العلاج والحشو', notes: 'حشو ضوئي' }];
-    var p2 = newPatient({ id: 'p2', name: 'محمد علي', phone: '01123456789', birth: '1985-11-03', gender: 'm' });
-    p2.medical.pressure = true; p2.medical.diabetes = true; p2.medical.medications = 'أدوية ضغط وسكر صباحاً';
-    p2.chart = { 36: { status: 'root', note: 'علاج عصب — الجلسة التانية', date: addDays(t, -7) }, 48: { status: 'missing', note: 'مخلوع', date: addDays(t, -60) } };
-    var p3 = newPatient({ id: 'p3', name: 'نورهان أحمد', phone: '01234567890', birth: '2000-02-20', gender: 'f' });
-    var p4 = newPatient({ id: 'p4', name: 'يوسف خالد', phone: '01512345678', birth: '2016-08-09', gender: 'm' });
-    d.patients = [p1, p2, p3, p4];
-    d.appointments = [
-      { id: 'a1', patientId: 'p1', doctorId: 'd1', serviceId: 's1', date: t, time: '11:00', status: 'confirmed', notes: '', source: 'admin', reminded: false, createdAt: t },
-      { id: 'a2', patientId: 'p2', doctorId: 'd3', serviceId: 's6', date: t, time: '12:00', status: 'pending', notes: 'جلسة عصب تانية', source: 'site', reminded: false, createdAt: t },
-      { id: 'a3', patientId: 'p4', doctorId: 'd2', serviceId: 's5', date: t, time: '14:00', status: 'confirmed', notes: '', source: 'site', reminded: false, createdAt: t },
-      { id: 'a4', patientId: 'p3', doctorId: 'd1', serviceId: 's2', date: addDays(t, 1), time: '13:00', status: 'confirmed', notes: '', source: 'site', reminded: false, createdAt: t },
-      { id: 'a5', patientId: 'p2', doctorId: 'd3', serviceId: 's8', date: addDays(t, 1), time: '11:00', status: 'pending', notes: '', source: 'site', reminded: false, createdAt: t },
-      { id: 'a6', patientId: 'p1', doctorId: 'd2', serviceId: 's7', date: addDays(t, 2), time: '16:00', status: 'pending', notes: '', source: 'site', reminded: false, createdAt: t }
-    ];
-    d.invoices = [
-      { id: 'i1', patientId: 'p1', date: addDays(t, -20), description: 'حشو ضوئي', total: 400, payments: [{ id: 'pay1', date: addDays(t, -20), amount: 400, method: 'cash' }] },
-      { id: 'i2', patientId: 'p2', date: addDays(t, -7), description: 'علاج عصب (3 جلسات)', total: 1800, payments: [{ id: 'pay2', date: addDays(t, -7), amount: 600, method: 'cash' }] }
-    ];
-    return d;
-  }
-
-  function load() {
-    var d = readStore();
-    if (!d || !d.version) { d = seed(); data = d; save(); }
-    data = d;
-  }
-
-  /* ---------- CRUD ---------- */
   function all(name) { return data[name]; }
   function find(name, id) { return data[name].find(function (x) { return x.id === id; }) || null; }
   function insert(name, obj) { if (!obj.id) obj.id = uid(name.charAt(0)); data[name].push(obj); save(); return obj; }
@@ -206,35 +250,34 @@
 
   /* ---------- الدخول ---------- */
   function login(username, password) {
-    var u = data.users.filter(function (x) { return x.username === String(username).trim() && x.password === password; })[0];
-    if (!u) return null;
-    var s = { id: u.id, username: u.username, name: u.name, role: u.role, doctorId: u.doctorId || null };
-    sessionStorage.setItem(SESSION_KEY, JSON.stringify(s));
-    return s;
+    return request('POST', '/api/auth/login', { username: username, password: password }, { noAuthRedirect: true, timeout: 70000 })
+      .then(function (j) {
+        sessionStorage.setItem(TOKEN_KEY, j.token);
+        sessionStorage.setItem(SESSION_KEY, JSON.stringify(j.user));
+        return j.user;
+      });
   }
-  function session() { try { return JSON.parse(sessionStorage.getItem(SESSION_KEY)); } catch (e) { return null; } }
-  function logout() { sessionStorage.removeItem(SESSION_KEY); }
+  function session() { try { return token() ? JSON.parse(sessionStorage.getItem(SESSION_KEY)) : null; } catch (e) { return null; } }
+  function logout() {
+    try { sessionStorage.removeItem(TOKEN_KEY); sessionStorage.removeItem(SESSION_KEY); } catch (e) { /* */ }
+  }
 
-  function settings() { return data.settings || (data.settings = {}); }
-  function saveSettings(patch) { Object.assign(settings(), patch); save(); }
+  function settings() {
+    if (!data.settings.reminderTemplate && C.reminderTemplate) return Object.assign({}, data.settings, { reminderTemplate: C.reminderTemplate });
+    return data.settings;
+  }
+  function saveSettings(patch) { Object.assign(data.settings, patch); save(); }
 
-  function resetDemo() { data = seed(); save(); }
-
-  load();
-
-  // مزامنة بين التابات (مثلاً حجز جديد من الموقع يظهر في اللوحة فوراً)
-  g.addEventListener('storage', function (e) {
-    if (e.key === KEY && e.newValue) {
-      try { data = JSON.parse(e.newValue); } catch (err) { return; }
-      if (typeof DB.onChange === 'function') DB.onChange();
-    }
-  });
+  // DB.ready: الصفحات المحمية بتستنى اللقطة الأولى قبل ما تشتغل
+  var ready = session() ? refresh() : Promise.resolve();
+  setInterval(poll, 30000);
 
   var DB = g.DB = {
+    ready: ready, refresh: refresh,
     all: all, find: find, insert: insert, update: update, remove: remove, removePatient: removePatient, commit: save,
     newPatient: newPatient, getSlots: getSlots, createBooking: createBooking, isOffDay: isOffDay, apptLength: apptLength,
     paid: paid, remaining: remaining, invStatus: invStatus, balance: balance,
-    login: login, session: session, logout: logout, resetDemo: resetDemo, settings: settings, saveSettings: saveSettings,
+    login: login, session: session, logout: logout, settings: settings, saveSettings: saveSettings,
     today: today, addDays: addDays, dayOfWeek: dayOfWeek, toMin: toMin, fromMin: fromMin, uid: uid,
     fmtDate: fmtDate, fmtTime: fmtTime, money: money, age: age, normPhone: normPhone, waLink: waLink,
     onChange: null
