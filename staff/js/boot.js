@@ -27,8 +27,9 @@
   }
   function fail(msg) {
     clearTimeout(slow);
-    box.innerHTML = '<div><strong>' + msg + '</strong><div style="margin-top:14px"><button onclick="location.reload()" style="padding:10px 22px;border-radius:10px;border:0;background:#4a3fcf;color:#fff;font:inherit;cursor:pointer">إعادة المحاولة</button> ' +
+    box.innerHTML = '<div><strong>' + String(msg).replace(/[&<>"']/g, function (c) { return '&#' + c.charCodeAt(0) + ';'; }) + '</strong><div style="margin-top:14px"><button id="retryBtn" style="padding:10px 22px;border-radius:10px;border:0;background:#4a3fcf;color:#fff;font:inherit;cursor:pointer">إعادة المحاولة</button> ' +
       '<a href="login.html" style="margin-inline-start:10px;color:#4a3fcf">تسجيل الدخول</a></div></div>';
+    document.getElementById('retryBtn').addEventListener('click', function () { location.reload(); });
   }
 
   DB.ready.then(function () { clearTimeout(slow); load(0); }, function (e) { fail(e && e.message ? e.message : 'حصل خطأ'); });
