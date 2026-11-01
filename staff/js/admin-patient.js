@@ -17,7 +17,7 @@
   var LOW = [48, 47, 46, 45, 44, 43, 42, 41, 31, 32, 33, 34, 35, 36, 37, 38];
 
   var TABS = [['info', 'البيانات الأساسية'], ['medical', 'التاريخ المرضي'], ['chart', 'مخطط الأسنان'], ['works', 'الشغل السابق'], ['visits', 'الزيارات']];
-  if (Admin.isReception()) TABS.push(['billing', 'الحسابات']);
+  if (Admin.can('billing')) TABS.push(['billing', 'الحسابات']);
 
   function renderHead() {
     var a = DB.age(p.birth);
@@ -35,7 +35,7 @@
   /* ---------- البيانات ---------- */
   function paneInfo() {
     $('#pane').innerHTML = '<div class="card"><div class="card-head"><h2>البيانات الأساسية</h2><div><button class="btn btn-ghost btn-sm" id="editP">تعديل</button> ' +
-      (Admin.isReception() ? '<button class="btn btn-danger btn-sm" id="delP">حذف المريض</button>' : '') + '</div></div><div class="detail-list">' +
+      (Admin.can('delete') ? '<button class="btn btn-danger btn-sm" id="delP">حذف المريض</button>' : '') + '</div></div><div class="detail-list">' +
       '<div><span>الاسم</span><strong>' + esc(p.name) + '</strong></div><div><span>الموبايل</span><strong dir="ltr">' + esc(p.phone) + '</strong></div>' +
       '<div><span>تاريخ الميلاد</span><strong>' + (p.birth ? DB.fmtDate(p.birth) + ' (' + DB.age(p.birth) + ' سنة)' : '—') + '</strong></div>' +
       '<div><span>النوع</span><strong>' + (p.gender === 'm' ? 'ذكر' : p.gender === 'f' ? 'أنثى' : '—') + '</strong></div>' +
@@ -120,7 +120,7 @@
   /* ---------- الزيارات ---------- */
   function paneVisits() {
     var list = DB.all('appointments').filter(function (a) { return a.patientId === p.id && (!isDoc || a.doctorId === Admin.user.doctorId); }).sort(function (a, b) { return -Admin.byTime(a, b); });
-    $('#pane').innerHTML = '<div class="card"><div class="card-head"><h2>المواعيد والزيارات</h2>' + (Admin.isReception() ? '<button class="btn btn-primary btn-sm" id="newA">+ موعد جديد</button>' : '') + '</div>' +
+    $('#pane').innerHTML = '<div class="card"><div class="card-head"><h2>المواعيد والزيارات</h2>' + (Admin.can('book') ? '<button class="btn btn-primary btn-sm" id="newA">+ موعد جديد</button>' : '') + '</div>' +
       (list.length ? '<div class="table-wrap"><table class="tbl"><thead><tr><th>التاريخ</th><th>الوقت</th><th>الخدمة</th><th>الدكتور</th><th>الحالة</th></tr></thead><tbody>' +
         list.map(function (a) { return '<tr><td>' + DB.fmtDate(a.date, false) + '</td><td>' + DB.fmtTime(a.time) + '</td><td>' + esc(Admin.serviceName(a.serviceId)) + '</td><td>' + esc(Admin.doctorName(a.doctorId)) + '</td><td>' + Admin.badge(a.status) + '</td></tr>'; }).join('') + '</tbody></table></div>'
         : '<div class="empty">مفيش زيارات.</div>') + '</div>';

@@ -108,8 +108,13 @@
 
   function fetchSnap() { return request('GET', '/api/snapshot'); }
 
+  function setSession(u) { try { sessionStorage.setItem(SESSION_KEY, JSON.stringify(u)); } catch (e) { /* */ } }
+
   function refresh() {
-    return fetchSnap().then(function (snap) { lastSnap = JSON.stringify(snap); apply(snap); });
+    return fetchSnap().then(function (snap) {
+      lastSnap = JSON.stringify(snap); apply(snap);
+      if (snap.me) setSession(snap.me); // الصلاحيات الحالية من السيرفر
+    });
   }
 
   // بيحسب الفرق بين البيانات الحالية وآخر نسخة السيرفر عنده → مصفوفة عمليات
@@ -168,6 +173,7 @@
     if (!session() || document.hidden || busy || scheduled || diff().length || document.getElementById('modalOverlay')) return;
     fetchSnap().then(function (snap) {
       var s = JSON.stringify(snap);
+      if (snap.me && JSON.stringify(snap.me) !== JSON.stringify(session())) { setSession(snap.me); location.reload(); return; } // المؤسس غيّر صلاحياتك
       if (s === lastSnap || busy || diff().length) return;
       lastSnap = s; apply(snap);
       if (typeof DB.onChange === 'function') DB.onChange();
@@ -273,7 +279,7 @@
   setInterval(poll, 30000);
 
   var DB = g.DB = {
-    ready: ready, refresh: refresh,
+    ready: ready, refresh: refresh, api: request,
     all: all, find: find, insert: insert, update: update, remove: remove, removePatient: removePatient, commit: save,
     newPatient: newPatient, getSlots: getSlots, createBooking: createBooking, isOffDay: isOffDay, apptLength: apptLength,
     paid: paid, remaining: remaining, invStatus: invStatus, balance: balance,

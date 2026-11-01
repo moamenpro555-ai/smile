@@ -2,12 +2,14 @@
 (function (g) {
   'use strict';
 
+  // needs = لازم يكون عند المستخدم واحدة من الخصائص دي (المؤسس عنده كلهم) — owner = للمؤسس بس
   var NAV = [
-    { id: 'dashboard', href: 'index.html', label: 'الرئيسية', icon: 'home', roles: ['reception', 'doctor'] },
-    { id: 'calendar', href: 'calendar.html', label: 'أجندة المواعيد', icon: 'calendar', roles: ['reception', 'doctor'] },
-    { id: 'patients', href: 'patients.html', label: 'المرضى', icon: 'users', roles: ['reception', 'doctor'] },
-    { id: 'billing', href: 'billing.html', label: 'الحسابات والفواتير', icon: 'card', roles: ['reception'] },
-    { id: 'reminders', href: 'reminders.html', label: 'تذكيرات واتساب', icon: 'bell', roles: ['reception'] }
+    { id: 'dashboard', href: 'index.html', label: 'الرئيسية', icon: 'home' },
+    { id: 'calendar', href: 'calendar.html', label: 'أجندة المواعيد', icon: 'calendar', needs: ['appointments', 'book'] },
+    { id: 'patients', href: 'patients.html', label: 'المرضى', icon: 'users', needs: ['patients'] },
+    { id: 'billing', href: 'billing.html', label: 'الحسابات والفواتير', icon: 'card', needs: ['billing'] },
+    { id: 'reminders', href: 'reminders.html', label: 'تذكيرات واتساب', icon: 'bell', needs: ['reminders'] },
+    { id: 'users', href: 'users.html', label: 'الحسابات والصلاحيات', icon: 'shield', owner: true }
   ];
 
   var STATUS = {
@@ -33,29 +35,54 @@
       var u = DB.session();
       if (!u) { location.href = 'login.html'; return false; }
       var item = NAV.filter(function (n) { return n.id === pageId; })[0];
-      if (item && item.roles.indexOf(u.role) < 0) { location.href = 'index.html'; return false; }
       Admin.user = u;
+      if (item && !Admin.allowed(item)) { location.href = 'index.html'; return false; }
       document.body.classList.add('admin');
 
-      var links = NAV.filter(function (n) { return n.roles.indexOf(u.role) > -1; }).map(function (n) {
+      var links = NAV.filter(Admin.allowed).map(function (n) {
         return '<a href="' + n.href + '" class="' + (n.id === pageId ? 'active' : '') + '">' + Icons.get(n.icon, 20) + n.label + '</a>';
       }).join('');
-      var roleLabel = u.role === 'doctor' ? 'طبيب' : 'استقبال وحسابات';
+      var roleLabel = u.role === 'owner' ? 'المؤسس' : u.role === 'doctor' ? 'طبيب' : 'موظف استقبال';
       document.getElementById('sidebar').innerHTML =
         '<a class="brand" href="../index.html" title="الموقع العام"><img src="../images/logo.jpg" alt=""><div><strong>' + esc(CLINIC.name) + '</strong><small>لوحة الإدارة</small></div></a>' +
         '<nav class="side-nav">' + links + '</nav>' +
         '<div class="side-user"><strong>' + esc(u.name) + '</strong><small>' + roleLabel + '</small>' +
+        '<button id="pwBtn">' + Icons.get('shield', 18) + 'تغيير كلمة المرور</button>' +
         '<button id="logoutBtn">' + Icons.get('logout', 18) + 'تسجيل الخروج</button></div>';
       document.getElementById('topbar').innerHTML =
         '<button class="menu-btn" id="menuBtn" aria-label="القائمة">' + Icons.get('menu', 26) + '</button>' +
         '<h1>' + esc(title) + '</h1><span class="date">' + DB.fmtDate(DB.today()) + '</span>';
       document.getElementById('logoutBtn').addEventListener('click', function () { DB.logout(); location.href = 'login.html'; });
+      document.getElementById('pwBtn').addEventListener('click', Admin.passwordForm);
       document.getElementById('menuBtn').addEventListener('click', function () { document.getElementById('sidebar').classList.toggle('open'); });
       return true;
     },
 
-    isDoctor: function () { return !!Admin.user && Admin.user.role === 'doctor'; },
-    isReception: function () { return !!Admin.user && Admin.user.role === 'reception'; },
+    // الصلاحيات: المؤسس عنده كل الخصائص، والباقي حسب اللي المؤسس إداهم
+    can: function (f) { var u = Admin.user; return !!u && (u.role === 'owner' || (u.permissions || []).indexOf(f) > -1); },
+    canAny: function (list) { return list.some(Admin.can); },
+    isOwner: function () { return !!Admin.user && Admin.user.role === 'owner'; },
+    allowed: function (item) {
+      if (item.owner) return Admin.isOwner();
+      return !item.needs || Admin.canAny(item.needs);
+    },
+    // "نطاق الدكتور": من غير خاصية «مواعيد كل الدكاترة» بيشوف مواعيد الدكتور المربوط بحسابه بس
+    isDoctor: function () { return !!Admin.user && !Admin.can('all_doctors'); },
+
+    passwordForm: function () {
+      var body = Admin.modal('تغيير كلمة المرور',
+        '<form id="pwf"><div class="field"><label>كلمة المرور الحالية</label><input type="password" name="cur" autocomplete="current-password" required></div>' +
+        '<div class="field"><label>كلمة المرور الجديدة (6 حروف على الأقل)</label><input type="password" name="nxt" autocomplete="new-password" minlength="6" required></div>' +
+        '<div class="field-error" id="pwErr"></div><div class="modal-actions"><button class="btn btn-primary" type="submit">حفظ</button><button class="btn btn-ghost" type="button" id="pwCancel">إلغاء</button></div></form>');
+      body.querySelector('#pwCancel').addEventListener('click', Admin.closeModal);
+      body.querySelector('#pwf').addEventListener('submit', function (e) {
+        e.preventDefault();
+        var f = e.target;
+        DB.api('POST', '/api/auth/change-password', { current: f.cur.value, next: f.nxt.value })
+          .then(function () { Admin.closeModal(); Admin.toast('تم تغيير كلمة المرور'); })
+          .catch(function (ex) { body.querySelector('#pwErr').textContent = ex.message; });
+      });
+    },
 
     // مواعيد الدكتور بس لو المستخدم دكتور، وكل المواعيد للريسبشن
     myAppts: function () {

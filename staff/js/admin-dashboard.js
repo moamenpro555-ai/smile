@@ -46,7 +46,7 @@
     var html = stat('مواعيد النهارده', active.length) +
       stat('حجوزات محتاجة تأكيد', pending.length, pending.length ? 'warn' : '') +
       stat('تم كشفهم النهارده', todayList.filter(function (a) { return a.status === 'done'; }).length, 'ok');
-    if (Admin.isReception()) {
+    if (Admin.can('billing')) {
       var todayIncome = 0, owed = 0;
       DB.all('invoices').forEach(function (i) {
         (i.payments || []).forEach(function (p) { if (p.date === t) todayIncome += Number(p.amount); });
@@ -61,7 +61,7 @@
     $('#todayTable').innerHTML = apptTable(todayList, false);
     $('#pendingTable').innerHTML = apptTable(pending, true);
     var reqCard = $('#reqCard');
-    if (Admin.isReception()) {
+    if (Admin.can('requests')) {
       var newReqs = DB.all('requests').filter(function (r) { return r.status === 'new'; });
       reqCard.hidden = !newReqs.length;
       if (newReqs.length) $('#reqTable').innerHTML = requestsTable(newReqs);
@@ -89,7 +89,7 @@
   });
   var add = $('#addAppt');
   add.addEventListener('click', function () { Forms.appointmentForm({}, render); });
-  if (Admin.isDoctor()) add.style.display = 'none';
+  if (!Admin.can('book')) add.style.display = 'none';
 
   DB.onChange = render;
   render();

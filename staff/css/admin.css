@@ -163,3 +163,18 @@ table.tbl { width: 100%; border-collapse: collapse; font-size: 14px; }
   .row2 { grid-template-columns: 1fr; }
 }
 [hidden]{display:none!important}
+
+/* ===== الحسابات والصلاحيات ===== */
+.perm-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 6px 0 14px; }
+.perm { display: flex; gap: 10px; align-items: flex-start; padding: 10px 12px; border: 1.5px solid var(--line); border-radius: 12px; cursor: pointer; background: #fff; }
+.perm:has(input:checked) { border-color: var(--primary); background: #f4f3ff; }
+.perm input { margin-top: 4px; accent-color: var(--primary); }
+.perm strong { display: block; font-size: 14px; }
+.perm small { display: block; color: var(--muted); font-size: 12px; margin-top: 2px; line-height: 1.5; }
+.chips { display: flex; flex-wrap: wrap; gap: 4px; }
+.chips .chip { background: #eef0ff; color: var(--primary); border-radius: 999px; padding: 2px 9px; font-size: 12px; font-weight: 600; white-space: nowrap; }
+.days { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
+.days label { display: flex; align-items: center; gap: 6px; padding: 6px 10px; border: 1.5px solid var(--line); border-radius: 10px; font-size: 13px; cursor: pointer; }
+.cred { background: #f4f3ff; border: 1.5px dashed var(--primary); border-radius: 14px; padding: 16px; margin: 10px 0 14px; line-height: 2; }
+.cred code { background: #fff; padding: 2px 10px; border-radius: 8px; font-size: 15px; direction: ltr; display: inline-block; }
+@media (max-width: 640px) { .perm-grid { grid-template-columns: 1fr; } }

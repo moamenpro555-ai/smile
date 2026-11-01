@@ -62,7 +62,7 @@
     appointmentForm: function (def, onSaved) {
       def = def || {};
       var a = def.id ? DB.find('appointments', def.id) : null;
-      var doctors = DB.all('doctors').filter(function (d) { return !Admin.isDoctor() || d.id === Admin.user.doctorId; });
+      var doctors = DB.all('doctors').filter(function (d) { return (d.active !== false || d.id === (a ? a.doctorId : def.doctorId)) && (!Admin.isDoctor() || d.id === Admin.user.doctorId); });
       var patients = DB.all('patients').slice().sort(function (x, y) { return x.name.localeCompare(y.name, 'ar'); });
       var cur = a || def;
       var body = Admin.modal(a ? 'تعديل الموعد' : 'موعد جديد',
@@ -130,7 +130,7 @@
         '<div class="field" style="margin-top:14px"><label>تغيير الحالة</label><select id="stSel">' + Admin.statusOptions(a.status) + '</select></div>' +
         '<div class="modal-actions"><a class="btn btn-primary btn-sm" href="patient.html?id=' + p.id + '">فتح ملف المريض</a>' +
         '<a class="btn btn-wa btn-sm" target="_blank" rel="noopener" href="' + DB.waLink(p.phone, 'أهلاً ' + p.name + '، معاك ' + CLINIC.name) + '">واتساب</a>' +
-        (Admin.isReception() ? '<button class="btn btn-ghost btn-sm" id="edAppt">تعديل</button><button class="btn btn-danger btn-sm" id="delAppt">حذف</button>' : '') + '</div>');
+        (Admin.can('book') ? '<button class="btn btn-ghost btn-sm" id="edAppt">تعديل</button>' : '') + (Admin.can('delete') ? '<button class="btn btn-danger btn-sm" id="delAppt">حذف</button>' : '') + '</div>');
       $('#stSel', body).addEventListener('change', function (e) {
         Admin.setStatus(id, e.target.value); Admin.closeModal(); Admin.toast('تم تحديث الحالة'); if (onChange) onChange();
       });

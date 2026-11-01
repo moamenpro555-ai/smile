@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>الحسابات والصلاحيات | لوحة سمايل دنتال كير</title>
+  <link rel="icon" href="../images/logo.jpg" type="image/jpeg">
+  <link rel="stylesheet" href="css/base.css">
+  <link rel="stylesheet" href="css/site.css">
+  <link rel="stylesheet" href="css/admin.css">
+</head>
+<body>
+  <div class="app">
+    <aside class="sidebar" id="sidebar"></aside>
+    <div class="main">
+      <header class="top" id="topbar"></header>
+      <div class="content">
+        <div class="card">
+          <div class="card-head">
+            <h2>الحسابات</h2>
+            <button class="btn btn-primary btn-sm" id="addUser">+ حساب جديد</button>
+          </div>
+          <div class="table-wrap" id="usersTable"></div>
+        </div>
+        <div class="card">
+          <div class="card-head">
+            <h2>الدكاترة</h2>
+            <button class="btn btn-primary btn-sm" id="addDoctor">+ دكتور جديد</button>
+          </div>
+          <div class="table-wrap" id="doctorsTable"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <script src="js/config.js"></script>
+  <script src="js/icons.js"></script>
+  <script src="js/store.js"></script>
+  <script src="js/boot.js" data-scripts="admin-common,admin-users"></script>
+</body>
+</html>

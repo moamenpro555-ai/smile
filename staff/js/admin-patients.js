@@ -14,7 +14,7 @@
     var list = DB.all('patients').filter(function (p) {
       return !q || p.name.toLowerCase().indexOf(q) > -1 || (qd && p.phone.indexOf(qd) > -1);
     }).sort(function (a, b) { return a.name.localeCompare(b.name, 'ar'); });
-    var showBal = Admin.isReception();
+    var showBal = Admin.can('billing');
     $('#list').innerHTML = !list.length ? '<div class="empty">مفيش مرضى مطابقين.</div>' :
       '<table class="tbl"><thead><tr><th>الاسم</th><th>الموبايل</th><th>السن</th><th>آخر زيارة</th>' + (showBal ? '<th>المتبقي</th>' : '') + '</tr></thead><tbody>' +
       list.map(function (p) {

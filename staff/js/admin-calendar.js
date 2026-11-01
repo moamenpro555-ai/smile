@@ -6,7 +6,7 @@
   var docSel = $('#docFilter');
 
   // فلتر الدكتور — الدكتور بيشوف جدوله بس
-  var doctors = DB.all('doctors');
+  var doctors = DB.all('doctors').filter(function (d) { return d.active !== false; });
   if (Admin.isDoctor()) {
     doctors = doctors.filter(function (d) { return d.id === Admin.user.doctorId; });
     docSel.innerHTML = doctors.map(function (d) { return '<option value="' + d.id + '">' + esc(d.name) + '</option>'; }).join('');
@@ -70,12 +70,13 @@
   $('#todayBtn').addEventListener('click', function () { cur = DB.today(); render(); });
   $('#jump').addEventListener('change', function (e) { if (e.target.value) { cur = e.target.value; render(); } });
   docSel.addEventListener('change', render);
+  if (!Admin.can('book')) $('#addAppt').style.display = 'none';
   $('#addAppt').addEventListener('click', function () { Forms.appointmentForm({ date: cur, doctorId: docSel.value || undefined }, render); });
 
   $('#calBody').addEventListener('click', function (e) {
     var c = e.target.closest('.appt');
     if (c) { Forms.apptDetails(c.dataset.id, render); return; }
-    if (!Admin.isReception()) return;
+    if (!Admin.can('book')) return;
     var cell = e.target.closest('.cells');
     if (cell) Forms.appointmentForm({ date: cur, time: cell.dataset.time, doctorId: docSel.value || undefined }, render);
     var col = e.target.closest('.week-col');
