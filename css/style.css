@@ -123,4 +123,4 @@ footer{padding:30px 0;text-align:center;color:var(--mu);border-top:1px solid var
 @keyframes wp{0%{box-shadow:0 0 0 0 rgba(37,211,102,.6)}70%,100%{box-shadow:0 0 0 20px transparent}}
 @media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}.rv{opacity:1}html{scroll-behavior:auto}}
 
-footer .sl{opacity:.75;text-decoration:underline;text-underline-offset:3px}footer .sl:hover{opacity:1}
+footer .w{display:flex;flex-direction:column;align-items:center;gap:14px}footer .sl{display:inline-flex;align-items:center;gap:8px;padding:9px 22px;border-radius:99px;font-weight:700;font-size:15px;color:var(--c);border:1.5px solid var(--c);background:var(--soft);transition:.3s}footer .sl .i{width:20px;height:20px}footer .sl:hover{color:#fff;background:linear-gradient(135deg,#08849d,#6a4fd0);border-color:transparent;transform:translateY(-2px);box-shadow:0 10px 26px rgba(106,79,208,.35)}
