@@ -75,17 +75,19 @@
         '<div class="row2"><div class="field"><label>الخدمة</label><select name="service">' + opts(DB.all('services'), cur.serviceId || 's0', function (s) { return s.name; }) + '</select></div>' +
         '<div class="field"><label>الدكتور</label><select name="doctor">' + opts(doctors, cur.doctorId || (doctors[0] && doctors[0].id), function (d) { return d.name; }) + '</select></div></div>' +
         '<div class="row2"><div class="field"><label>التاريخ</label><input type="date" name="date" value="' + esc(cur.date || DB.today()) + '"></div>' +
-        '<div class="field"><label>الوقت</label><select name="time"></select></div></div>' +
+        '<div class="field"><label>الوقت</label><select name="time"></select><small id="slotHint" style="color:var(--muted);display:block;margin-top:4px"></small></div></div>' +
         '<div class="field"><label>ملاحظات</label><textarea name="notes" rows="2">' + esc(cur.notes) + '</textarea></div>' +
         '<div class="field-error" id="afErr"></div>' +
         '<div class="modal-actions"><button class="btn btn-primary" type="submit">حفظ</button><button class="btn btn-ghost" type="button" id="afCancel">إلغاء</button></div></form>');
       var f = $('#af', body);
       function refreshSlots() {
         var res = DB.getSlots(f.doctor.value, f.date.value, f.service.value, { ignoreNow: true, exceptId: a && a.id });
-        if (res.closed) { f.time.innerHTML = '<option value="">الدكتور في إجازة اليوم ده</option>'; return; }
+        var hint = $('#slotHint', body);
+        if (res.closed) { f.time.innerHTML = '<option value="">الدكتور في إجازة اليوم ده</option>'; hint.textContent = ''; return; }
+        hint.textContent = 'دوام الدكتور: ' + DB.fmtTime(res.doctorStart) + ' – ' + DB.fmtTime(res.doctorEnd) + ' (تقدر تحجز برا الدوام لحد 12 بليل)';
         var want = f.time.value || cur.time;
         f.time.innerHTML = res.slots.map(function (s) {
-          return '<option value="' + s.time + '"' + (s.available ? '' : ' disabled') + (s.time === want ? ' selected' : '') + '>' + DB.fmtTime(s.time) + (s.available ? '' : ' (محجوز)') + '</option>';
+          return '<option value="' + s.time + '"' + (s.available ? '' : ' disabled') + (s.time === want ? ' selected' : '') + '>' + DB.fmtTime(s.time) + (s.available ? (s.outside ? ' · خارج دوام الدكتور' : '') : ' (محجوز)') + '</option>';
         }).join('');
       }
       f.patient.addEventListener('change', function () { $('#newPat', body).hidden = f.patient.value !== '__new'; });

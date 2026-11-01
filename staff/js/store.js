@@ -216,7 +216,9 @@
     var svc = serviceId ? find('services', serviceId) : null;
     var step = C.slotMinutes || 30;
     var need = Math.max(step, svc ? svc.duration : step);
-    var start = toMin(doc.start), end = toMin(doc.end);
+    var win = C.bookingWindow || { start: '10:00', end: '24:00' };
+    var dStart = toMin(doc.start), dEnd = toMin(doc.end);
+    var start = Math.min(dStart, toMin(win.start)), end = Math.max(dEnd, toMin(win.end));
     var busy = data.appointments.filter(function (a) {
       return a.doctorId === doctorId && a.date === date && a.id !== opts.exceptId &&
         a.status !== 'cancelled' && a.status !== 'noshow';
@@ -227,9 +229,9 @@
       var ok = true;
       if (!opts.ignoreNow && (date < today() || (isToday && t <= nowMin))) ok = false;
       for (var i = 0; i < busy.length; i++) { if (t < busy[i][1] && t + need > busy[i][0]) ok = false; }
-      slots.push({ time: fromMin(t), available: !!ok });
+      slots.push({ time: fromMin(t), available: !!ok, outside: t < dStart || t + need > dEnd });
     }
-    return { closed: false, slots: slots };
+    return { closed: false, slots: slots, doctorStart: doc.start, doctorEnd: doc.end };
   }
 
   function createBooking(b) {

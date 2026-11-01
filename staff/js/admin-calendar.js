@@ -10,7 +10,7 @@
   if (Admin.isDoctor()) {
     doctors = doctors.filter(function (d) { return d.id === Admin.user.doctorId; });
     docSel.innerHTML = doctors.map(function (d) { return '<option value="' + d.id + '">' + esc(d.name) + '</option>'; }).join('');
-    docSel.disabled = true; $('#addAppt').style.display = 'none';
+    docSel.disabled = true;
   } else {
     docSel.innerHTML = '<option value="">كل الدكاترة</option>' + doctors.map(function (d) { return '<option value="' + d.id + '">' + esc(d.name) + '</option>'; }).join('');
   }
@@ -30,8 +30,9 @@
   function dayView() {
     var step = CLINIC.slotMinutes || 30;
     var ds = doctors.filter(function (d) { return !docSel.value || d.id === docSel.value; });
-    var start = Math.min.apply(null, ds.map(function (d) { return DB.toMin(d.start); }));
-    var end = Math.max.apply(null, ds.map(function (d) { return DB.toMin(d.end); }));
+    var win = CLINIC.bookingWindow || { start: '10:00', end: '24:00' };
+    var start = Math.min.apply(null, ds.map(function (d) { return DB.toMin(d.start); }).concat(DB.toMin(win.start)));
+    var end = Math.max.apply(null, ds.map(function (d) { return DB.toMin(d.end); }).concat(DB.toMin(win.end)));
     var list = appts(cur), html = '';
     var off = ds.every(function (d) { return DB.isOffDay(d, cur); });
     if (off) html += '<div class="card empty">إجازة — العيادة مقفولة في اليوم ده.</div>';

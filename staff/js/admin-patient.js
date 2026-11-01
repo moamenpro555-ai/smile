@@ -67,8 +67,7 @@
     var problems = Object.keys(p.chart).sort(function (a, b) { return a - b; });
     $('#pane').innerHTML = '<div class="card"><div class="card-head"><h2>مخطط الأسنان</h2><small style="color:var(--muted)">' +
       (isDoc ? 'اضغط على السنة عشان تعلّم عليها' : 'العرض فقط — التعديل للدكتور') + '</small></div>' +
-      '<div class="chart-wrap"><div class="arch">' + UP.slice(0, 8).map(toothBtn).join('') + '<div class="mid"></div>' + UP.slice(8).map(toothBtn).join('') + '</div>' +
-      '<div class="arch">' + LOW.slice(0, 8).map(toothBtn).join('') + '<div class="mid"></div>' + LOW.slice(8).map(toothBtn).join('') + '</div></div>' +
+      '<div class="jaw-wrap">' + JawChart.render(function (n) { return (p.chart[n] || {}).status || 'healthy'; }, function (st) { return TOOTH[st]; }) + '</div>' +
       '<div class="legend">' + Object.keys(TOOTH).map(function (k) { return '<span><i style="background:' + COLORS[k] + '"></i>' + TOOTH[k] + '</span>'; }).join('') + '</div></div>' +
       '<div class="card"><div class="card-head"><h2>الأسنان المعلّم عليها</h2></div>' +
       (problems.length ? '<table class="tbl"><thead><tr><th>السنة</th><th>الحالة</th><th>ملاحظة</th><th>التاريخ</th></tr></thead><tbody>' +
@@ -146,7 +145,8 @@
   function renderAll() { p = DB.find('patients', id); renderHead(); renderTabs(); PANES[tab](); }
 
   $('#tabs').addEventListener('click', function (e) { var b = e.target.closest('[data-tab]'); if (b) { tab = b.dataset.tab; renderTabs(); PANES[tab](); } });
-  $('#pane').addEventListener('click', function (e) { var t = e.target.closest('.tooth'); if (t) toothModal(t.dataset.t); });
+  $('#pane').addEventListener('click', function (e) { var t = e.target.closest('.jaw-tooth'); if (t) toothModal(t.getAttribute('data-t')); });
+  $('#pane').addEventListener('keydown', function (e) { var t = e.target.closest && e.target.closest('.jaw-tooth'); if (t && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); toothModal(t.getAttribute('data-t')); } });
 
   renderAll();
 })();
