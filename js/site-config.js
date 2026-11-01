@@ -1,3 +1,3 @@
 /* رابط الـ API (الباك إند على Render) من غير / في الآخر.
    لو سبته فاضي، الفورم هيبعت على واتساب بس ومش هيسجّل الطلب في لوحة الموظفين. */
-window.SITE_API = 'http://localhost:3000';
+window.SITE_API = 'https://smile-api-56rj.onrender.com';
