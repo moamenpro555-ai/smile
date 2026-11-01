@@ -59,10 +59,10 @@ table.tbl { width: 100%; border-collapse: collapse; font-size: 14px; }
 .badge-ok { background: #def5e7; color: #12803c; }
 .badge-danger { background: #fde4e5; color: #b4282d; }
 .badge-muted { background: #ececf5; color: #6b6f93; }
-.alert-chip { display: inline-block; background: #fde4e5; color: #b4282d; border-radius: 8px; font-size: 12px; font-weight: 700; padding: 2px 8px; margin-inline-start: 4px; }
+.alert-chip { display: inline-block; background: #fde4e5; color: #b4282d; border-radius: 8px; font-size: 12px; font-weight: 700; padding: 2px 8px; margin-right:4px;margin-inline-start: 4px; }
 
 /* المودال والتوست */
-.modal-overlay { position: fixed; inset: 0; background: rgba(20, 18, 60, .5); display: grid; place-items: center; z-index: 100; padding: 16px; }
+.modal-overlay { position: fixed; top:0;right:0;bottom:0;left:0;inset: 0; background: rgba(20, 18, 60, .5); display: grid; place-items: center; z-index: 100; padding: 16px; }
 .modal { background: #fff; border-radius: 20px; width: min(560px, 100%); max-height: 92vh; overflow: auto; box-shadow: 0 30px 60px rgba(0, 0, 0, .3); }
 .modal.wide { width: min(760px, 100%); }
 .modal-head { display: flex; align-items: center; justify-content: space-between; padding: 18px 22px; border-bottom: 1px solid var(--line); position: sticky; top: 0; background: #fff; z-index: 1; }
@@ -136,7 +136,7 @@ table.tbl { width: 100%; border-collapse: collapse; font-size: 14px; }
 .tooth.st-missing { opacity: .35; }
 .tooth.st-missing .ico { fill: #d6d8e8; stroke-dasharray: 3 3; }
 .legend { display: flex; flex-wrap: wrap; gap: 14px; justify-content: center; margin-top: 16px; font-size: 13px; font-weight: 600; }
-.legend i { display: inline-block; width: 12px; height: 12px; border-radius: 4px; margin-inline-end: 6px; vertical-align: -1px; border: 1px solid #c9ccdf; }
+.legend i { display: inline-block; width: 12px; height: 12px; border-radius: 4px; margin-left:6px;margin-inline-end: 6px; vertical-align: -1px; border: 1px solid #c9ccdf; }
 .st-picker { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 8px; margin-bottom: 14px; }
 .st-picker label { border: 1.5px solid var(--line); border-radius: 10px; padding: 9px; text-align: center; font-weight: 700; font-size: 13.5px; cursor: pointer; }
 .st-picker input { display: none; }

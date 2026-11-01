@@ -64,7 +64,14 @@
 
 
   /* ---------- الاتصال بالسيرفر ---------- */
-  function token() { try { return sessionStorage.getItem(TOKEN_KEY); } catch (e) { return null; } }
+  /* تخزين الجلسة: sessionStorage ثم localStorage ثم الذاكرة (لمتصفحات آيفون في الوضع الخاص) */
+  var memStore = {};
+  var store = {
+    getItem: function (k) { try { var v = window.sessionStorage.getItem(k); if (v !== null) return v; } catch (e) { /* */ } try { var w = window.localStorage.getItem(k); if (w !== null) return w; } catch (e) { /* */ } return Object.prototype.hasOwnProperty.call(memStore, k) ? memStore[k] : null; },
+    setItem: function (k, v) { memStore[k] = String(v); try { window.sessionStorage.setItem(k, v); return; } catch (e) { /* */ } try { window.localStorage.setItem(k, v); } catch (e) { /* */ } },
+    removeItem: function (k) { delete memStore[k]; try { window.sessionStorage.removeItem(k); } catch (e) { /* */ } try { window.localStorage.removeItem(k); } catch (e) { /* */ } }
+  };
+  function token() { try { return store.getItem(TOKEN_KEY); } catch (e) { return null; } }
 
   function toLogin() {
     logout();
@@ -108,7 +115,7 @@
 
   function fetchSnap() { return request('GET', '/api/snapshot'); }
 
-  function setSession(u) { try { sessionStorage.setItem(SESSION_KEY, JSON.stringify(u)); } catch (e) { /* */ } }
+  function setSession(u) { try { store.setItem(SESSION_KEY, JSON.stringify(u)); } catch (e) { /* */ } }
 
   function refresh() {
     return fetchSnap().then(function (snap) {
@@ -260,14 +267,14 @@
   function login(username, password) {
     return request('POST', '/api/auth/login', { username: username, password: password }, { noAuthRedirect: true, timeout: 70000 })
       .then(function (j) {
-        sessionStorage.setItem(TOKEN_KEY, j.token);
-        sessionStorage.setItem(SESSION_KEY, JSON.stringify(j.user));
+        store.setItem(TOKEN_KEY, j.token);
+        store.setItem(SESSION_KEY, JSON.stringify(j.user));
         return j.user;
       });
   }
-  function session() { try { return token() ? JSON.parse(sessionStorage.getItem(SESSION_KEY)) : null; } catch (e) { return null; } }
+  function session() { try { return token() ? JSON.parse(store.getItem(SESSION_KEY)) : null; } catch (e) { return null; } }
   function logout() {
-    try { sessionStorage.removeItem(TOKEN_KEY); sessionStorage.removeItem(SESSION_KEY); } catch (e) { /* */ }
+    try { store.removeItem(TOKEN_KEY); store.removeItem(SESSION_KEY); } catch (e) { /* */ }
   }
 
   function settings() {
