@@ -13,8 +13,13 @@ const io=new IntersectionObserver(es=>es.forEach(e=>{if(e.isIntersecting){e.targ
 $$('.rv').forEach(e=>io.observe(e));
 $('#rg').oninput=e=>$('#cm').style.setProperty('--x',e.target.value+'%');
 $$('[data-s]').forEach(b=>b.addEventListener('click',()=>{$('#sv').value=b.dataset.s}));
-$('#bf').onsubmit=e=>{e.preventDefault();const f=Object.fromEntries(new FormData(e.target));
-const t=`مرحبًا سمايل دنتال كير، أرغب في حجز موعد.\nالاسم: ${f.n}\nالموبايل: ${f.p}\nالخدمة: ${f.s}\nالموعد المفضل: ${f.d||'غير محدد'}${f.m?'\nملاحظات: '+f.m:''}`;
-$('#ok').hidden=false;
-if(window.SITE_API){try{fetch(window.SITE_API.replace(/\/+$/,'')+'/api/public/booking-request',{method:'POST',headers:{'Content-Type':'application/json'},keepalive:true,body:JSON.stringify({name:f.n,phone:f.p,service:f.s,date:f.d||'',notes:f.m||'',website:f.website||''})}).catch(()=>{})}catch(_){}}
-open('https://wa.me/201117778389?text='+encodeURIComponent(t),'_blank')};
+$('#bf').onsubmit=async e=>{e.preventDefault();const f=Object.fromEntries(new FormData(e.target)),ok=$('#ok'),er=$('#er'),sb=$('#sb'),lb=sb.textContent;
+ok.hidden=er.hidden=true;
+const fail=m=>{er.innerHTML=m+' أو كلمنا على <a href="tel:01117778389">01117778389</a> / <a href="https://wa.me/201117778389" target="_blank" rel="noopener">واتساب</a>.';er.hidden=false};
+if(!window.SITE_API)return fail('الحجز أونلاين غير متاح حاليًا.');
+sb.disabled=true;sb.textContent='جاري الإرسال...';
+try{const r=await fetch(window.SITE_API.replace(/\/+$/,'')+'/api/public/booking-request',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:f.n,phone:f.p,service:f.s,date:f.d||'',notes:f.m||'',website:f.website||''})});
+const d=await r.json().catch(()=>({}));
+if(!r.ok)fail(d.error||'حصلت مشكلة في الإرسال، جرّب تاني.');else{ok.hidden=false;e.target.reset()}}
+catch(_){fail('تعذّر الاتصال بالسيرفر، جرّب بعد شوية.')}
+finally{sb.disabled=false;sb.textContent=lb}};
